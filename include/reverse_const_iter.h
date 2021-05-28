@@ -1,24 +1,25 @@
-#ifndef BIDIR_CONST_ITER_H
-#define BIDIR_CONST_ITER_H
+#ifndef REVERSE_CONST_ITER_H
+#define REVERSE_CONST_ITER_H
 #include <iterator>
 #include "tree.h"
 
+// need to be an adaptor
 template <typename Key, typename T, class Comp, class Alloc>
-class Bidir_const_iter
+class Reverse_const_iter
 {
     const Node<Key,T>* node;
     const Tree<Key,T,Comp,Alloc>* const tree;
 
 public:
 
-    typedef const Bidir_const_iter Iter;
+    typedef const Reverse_const_iter Iter;
     typedef std::bidirectional_iterator_tag iterator_category;
     typedef const Node<Key,T> value_type;
     typedef std::ptrdiff_t difference_type;
     typedef const Node<Key,T>* pointer;
     typedef const Node<Key,T>& reference;
 
-    Bidir_const_iter(Node<Key,T>* nd, 
+    Reverse_const_iter(Node<Key,T>* nd, 
             const Tree<Key,T,Comp,Alloc>& tr) : node(nd), tree(&tr) {}
 
     bool operator==( const Iter& other ) const 
@@ -46,7 +47,7 @@ public:
 };
 
 template <typename Key, typename T, class Comp, class Alloc>
-typename Bidir_const_iter<Key,T,Comp,Alloc>::Iter Bidir_const_iter<Key,T,Comp,Alloc>::operator++()
+typename Reverse_const_iter<Key,T,Comp,Alloc>::Iter Reverse_const_iter<Key,T,Comp,Alloc>::operator--()
 {
     Node<Key,T>* parent;
 
@@ -75,7 +76,7 @@ typename Bidir_const_iter<Key,T,Comp,Alloc>::Iter Bidir_const_iter<Key,T,Comp,Al
 }
 
 template <typename Key, typename T, class Comp, class Alloc>
-typename Bidir_const_iter<Key,T,Comp,Alloc>::Iter Bidir_const_iter<Key,T,Comp,Alloc>::operator--()
+typename Reverse_const_iter<Key,T,Comp,Alloc>::Iter Reverse_const_iter<Key,T,Comp,Alloc>::operator++()
 {
     Node<Key,T>* parent;
 

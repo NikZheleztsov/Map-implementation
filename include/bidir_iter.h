@@ -18,7 +18,9 @@ public:
     typedef Node<Key,T>* pointer;
     typedef Node<Key,T>& reference;
 
-    Bidir_iter(Node<Key,T>* nd, Tree<Key,T,Comp,Alloc>* tr) : node(nd), tree(tr) {}
+    Bidir_iter(Node<Key,T>* nd, Tree<Key,T,Comp,Alloc>& tr) : 
+        node(nd), tree(&tr) {}
+            
     bool operator==( Iter const& other ) const 
         { return (node == other.node); }
     bool operator!=( Iter const& other ) const 
@@ -30,9 +32,11 @@ public:
     Iter operator--();
     Iter operator--( int ) { auto tmp = *this; --*this; return tmp; }
 
-    // Additional
-    Key first() { return node->first; }
-    T second () { return node->second; }
+    // Additional 
+    Key first() { return node == nullptr ? Key() : node->first; }
+    T second() { return node == nullptr ? T() : node->second; }
+
+    template <typename, typename, class, class> friend class Map;
 };
 
 template <typename Key, typename T, class Comp, class Alloc>
@@ -42,7 +46,7 @@ Bidir_iter<Key,T,Comp,Alloc> Bidir_iter<Key,T,Comp,Alloc>::operator++()
 
     if (node == nullptr)
     {
-        return *this;;
+        return *this;
 
     } else if (node->right != nullptr)
     {
