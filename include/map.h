@@ -2,9 +2,9 @@
 #define MAP_H
 #include <functional>
 #include <memory>
-#include <limits>
 #include <stdexcept>
 #include "tree.h"
+#include <limits>
 #include "bidir_iter.h"
 #include "bidir_const_iter.h"
 #include "reverse_iter.h"
@@ -53,8 +53,8 @@ public:
     Map& operator=(Map& other) { tr = other.tr; return *this; }
 
     // Element access
-    T& at (const Key& key) { return tr.find(key)->second; }
-    T& operator[]( const Key& key); //
+    T& at (const Key& key);
+    T& operator[]( const Key& key);
 
     // Iterators
     iterator begin() { return iterator(tr.find_min(), tr); }
@@ -85,7 +85,7 @@ public:
 
     void swap(Map& other);
 
-    node_type extract (const_iterator position) 
+    node_type extract (iterator position) 
         { return *tr.del_in(position.node, position.node->first, position.node->top); }
     node_type extract (const key_type& x)
         { return *tr.del(x); }
@@ -94,31 +94,40 @@ public:
     template<class C2> void merge( Map<Key,T,C2,Allocator>& source );
 
     // Lookup
-    size_type count(const Key& key) const { return (tr.find(key) == nullptr ? 0 : 1); }
+    size_type count(const Key& key) { return ((tr.find(key) == nullptr) ? 0 : 1); }
     iterator find(const Key& key) { return iterator(tr.find(key), tr); }
     const_iterator find( const Key& key) const { return const_iterator(tr.find(key), tr); }
 };
 
+template <class Key, class T, class Compare, class Allocator> 
+inline T& Map_impl::at (const Key& key) 
+{ 
+    if (tr.find(key) == nullptr) 
+        throw std::out_of_range("not found");
+
+    return tr.find(key)->second;
+}
+
 template <class Key, class T, class Compare, class Allocator> template <class InputIt> 
-Map<Key,T,Compare,Allocator>::Map (InputIt first, InputIt last) : tr()
+inline Map<Key,T,Compare,Allocator>::Map (InputIt first, InputIt last) : tr()
 {
     auto dist = std::distance(first, last);
     if (dist < 0 || dist > max_size())
         throw std::invalid_argument("Map::Map(...) - first It > last It");
 
     for (; first != last; first++)
-        tr->push (std::make_pair(first.first(), first.second()));
+        tr.push (std::make_pair(first.first(), first.second()));
 }
 
 template <class Key, class T, class Compare, class Allocator> 
-Map<Key,T,Compare,Allocator>::Map( std::initializer_list<Map::value_type> init ) : tr()
+inline Map<Key,T,Compare,Allocator>::Map( std::initializer_list<Map::value_type> init ) : tr()
 {
     for (auto it = init.begin(); it < init.end(); it++)
         tr.push(*it);
 }
 
 template <class Key, class T, class Compare, class Allocator>
-typename Map_impl::mapped_type& Map_impl::operator[] (const Key& key)
+inline T& Map_impl::operator[] (const Key& key)
 {
     auto find = tr.find(key);
     if (find == nullptr)
@@ -158,8 +167,16 @@ typename Map_impl::iterator Map_impl::erase( iterator pos )
 {
     auto tmp = pos; tmp++;
     Node<Key,T>* nd = tr.find(pos.node->first);
-    if (nd == pos.node) // comparison of addresses
+    if (nd == pos.node && pos.node != nullptr) // comparison of addresses
+    {
+        Node<Key,T>* top = nullptr;
+        if (pos.node != pos.tree->root)
+            top = pos.node->top;
+
         tr.del_in(pos.node, pos.node->first, pos.node->top);
+        if (top != nullptr)
+            top = pos.tree->balance(top, top->top);
+    }
 
     return tmp;
 }
@@ -173,10 +190,25 @@ typename Map_impl::iterator Map_impl::erase( iterator first, iterator last )
         throw std::invalid_argument("Map::erase - first It > last It");
 
     if (tr.find(first.node->first) == first.node &&
-            (tr.find(last.node->first) == last.node || last.node == nullptr))
+            ( last.node == nullptr || tr.find(last.node->first) == last.node))
+    {
+        auto t = first++;
+        do {
+            if (t.node != nullptr)
+            {
+                Node<Key,T>* top = nullptr;
+                if (t.node != t.tree->root)
+                    top = t.node->top;
 
-        for (; first != last; first++)
-            tr.del_in(first.node, first.node->first, first.node->top);
+                tr.del_in(t.node, t.node->first, t.node->top); // no balance !
+                if (top != nullptr)
+                    top = t.tree->balance(top, top->top);
+                t = first;
+            } else
+                break;
+
+        } while (first.node == nullptr ? (last.node == nullptr) : first++ != last);
+    }
     
     return tmp;
 }
@@ -195,7 +227,7 @@ typename Map_impl::size_type Map_impl::erase (const Key& key)
 }
 
 template <class Key, class T, class Compare, class Allocator> 
-void Map_impl::swap(Map& other)
+inline void Map_impl::swap(Map& other)
 {
     auto tmp(std::move(other));
     other = *this;

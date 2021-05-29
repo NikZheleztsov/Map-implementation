@@ -35,7 +35,7 @@ public:
 
     // Additional 
     Key first() { return node == nullptr ? Key() : node->first; }
-    T second() { return node == nullptr ? T() : node->second; }
+    T& second() { if (node != nullptr) return  node->second; }
 
     template <typename, typename, class, class> friend class Map;
 };

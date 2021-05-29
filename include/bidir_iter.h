@@ -34,7 +34,7 @@ public:
 
     // Additional 
     Key first() { return node == nullptr ? Key() : node->first; }
-    T second() { return node == nullptr ? T() : node->second; }
+    T& second() { if (node != nullptr) return  node->second; }
 
     template <typename, typename, class, class> friend class Map;
 };
@@ -79,7 +79,7 @@ Bidir_iter<Key,T,Comp,Alloc> Bidir_iter<Key,T,Comp,Alloc>::operator--()
         // find max in tree
         node = tree->get_root(); 
         if (node == nullptr)
-            return (node = nullptr); // if empty tree
+            return *this; // if empty tree
 
         while (node->right != nullptr)
             node = node->right;

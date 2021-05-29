@@ -4,6 +4,44 @@
 #include <string>
 #include <iomanip>
 #include "tree.h"
+#include "bidir_const_iter.h"
+
+// really slow one 
+template <typename Key, typename T, class Comp, class Allocator>
+Tree<Key,T,Comp,Allocator>::Tree(const Tree<Key,T,Comp,Allocator>& other)
+{
+    if (other.root != nullptr)
+    {
+        const_iterator beg (other.find_min(), *this);
+        while (beg != nullptr)
+        {
+            push(std::make_pair(beg.first(), beg.second()));
+            beg++;
+        }
+
+        _size = other._size;
+    }
+}
+
+template <typename Key, typename T, class Comp, class Allocator>
+Tree<Key,T,Comp,Allocator>& Tree<Key,T,Comp,Allocator>::operator=( Tree<Key,T,Comp,Allocator>& other )
+{
+    this->~Tree();
+
+    if (other.root != nullptr)
+    {
+        const_iterator beg (other.find_min(), *this);
+        while (beg != nullptr)
+        {
+            push(std::make_pair(beg.first(), beg.second()));
+            beg++;
+        }
+
+        _size = other._size;
+    }
+    
+    return *this;
+}
 
 // calculating height based on bottom Nodes
 template <typename Key, typename T, class Comp, class Allocator>
@@ -150,51 +188,45 @@ Node<Key,T>* Tree<Key,T,Comp,Allocator>::balance (Node<Key, T>* nd, Node<Key,T>*
                     root = nd;
             }
         }
-
     }
 
     return nd;
 }
 
+// node_r for no reallocation 
 template <typename Key, typename T, class Comp, class Allocator>
-Node<Key,T>* Tree<Key,T,Comp,Allocator>::push_in(Tree<Key,T,Comp,Allocator>& tr, Node<Key, T>* nd, T data, Key key, Node<Key, T>* top)
+std::pair<Node<Key,T>*, Node<Key,T>*> Tree<Key,T,Comp,Allocator>::push_in(Node<Key, T>* nd, const std::pair<Key,T>& pair, Node<Key, T>* top)
 {
     if (nd == nullptr)
     {
-        /*
-        nd = new Node<Key,T>;
-        nd->data = data;
-        nd->key = key;
-        nd->left = nullptr;
-        nd->right = nullptr;
-        nd->height = 1;
-        nd->top = top;
-        nd->dif = 0;
-        */
-
         nd = alloc_traits::allocate(alloc, 1);
-        alloc_traits::construct(alloc, nd, key, data, top, nullptr, nullptr, 0, 1);
+        alloc_traits::construct(alloc, nd, pair, top, nullptr, nullptr, 0, 1);
+        // don't know how to implement move semantics here
 
-        if (tr.root == nullptr)
-            tr.root = nd;
+        _size++;
+        if (root == nullptr)
+            root = nd;
 
-        return nd;
+        return std::make_pair(nd,nd);
 
-    } else if (nd->key == key)
+    } else if (nd->first == pair.first)
     {
-        std::cout << "Similar keys are forbidden!\n";
-        return nd;
+        // similar keys
+        return std::make_pair(nd,nd);
 
-    } else if (Comp{}(key, nd->key))
+    } else if (Comp{}(pair.first, nd->first))
     {
-        nd->right = push_in(tr, nd->right, data, key, nd);
+        auto ret = push_in(nd->right, pair, nd);
+        nd->right = ret.first;
         nd = balance(nd, top);
-        return nd;
+        return std::make_pair(nd, ret.second);
+
     } else 
     {
-        nd->left = push_in(tr, nd->left, data, key, nd);
+        auto ret = push_in(nd->left, pair, nd);
+        nd->left = ret.first;
         nd = balance(nd, top);
-        return nd;
+        return std::make_pair(nd, ret.second);;
     }
 }
 
@@ -205,7 +237,7 @@ Node<Key,T>* Tree<Key,T,Comp,Allocator>::l_max (Node<Key, T>* nd)
 
     do {
 
-        if (Comp{}(nd->key, max->key))
+        if (Comp{}(nd->first, max->first))
             max = nd;
         nd = nd->right;
 
@@ -221,10 +253,11 @@ bool Tree<Key,T,Comp,Allocator>::is_leaf (Node<Key,T>* nd)
 }
 
 template <typename Key, typename T, class Comp, class Allocator>
-void Tree<Key,T,Comp,Allocator>::del_in(Tree<Key,T,Comp,Allocator>& tr, Node<Key, T>* nd, Key key, Node<Key, T>* top)
+Node<Key,T>* Tree<Key,T,Comp,Allocator>::del_in(Node<Key, T>* nd, Key key, Node<Key, T>* top)
 {
-    if (nd->data.first == key)
+    if (nd->first == key)
     {
+        _size--;
         if (is_leaf(nd))
         {
             if (top)
@@ -234,10 +267,10 @@ void Tree<Key,T,Comp,Allocator>::del_in(Tree<Key,T,Comp,Allocator>& tr, Node<Key
                 else 
                     top->left = nullptr;
             } else 
-                tr.root = nullptr;
+                root = nullptr;
 
-            // delete nd;
-            alloc_traits::deallocate(alloc, nd, 1);
+            // alloc_traits::deallocate(alloc, nd, 1);
+            return nd;
 
         } else {
 
@@ -249,8 +282,8 @@ void Tree<Key,T,Comp,Allocator>::del_in(Tree<Key,T,Comp,Allocator>& tr, Node<Key
 
             Node<Key,T>* bal = for_ch->top;
 
-            nd->data.second = for_ch->data;
-            nd->data.first = for_ch->key;
+            nd->second = for_ch->second;
+            nd->first = for_ch->first;
 
             if (is_leaf(for_ch))
             {
@@ -262,8 +295,7 @@ void Tree<Key,T,Comp,Allocator>::del_in(Tree<Key,T,Comp,Allocator>& tr, Node<Key
                         bal->left = nullptr;
                 }
 
-                // delete for_ch;
-                alloc_traits::deallocate(alloc, for_ch, 1);
+                // alloc_traits::deallocate(alloc, for_ch, 1);
 
             } else {
 
@@ -272,8 +304,8 @@ void Tree<Key,T,Comp,Allocator>::del_in(Tree<Key,T,Comp,Allocator>& tr, Node<Key
                     bal->right = for_ch->left;
                 else 
                     bal->left = for_ch->left;
-                // delete for_ch;
-                alloc_traits::deallocate(alloc, for_ch, 1);
+
+                // alloc_traits::deallocate(alloc, for_ch, 1);
             }
 
             //balancing from for_ch
@@ -300,17 +332,27 @@ void Tree<Key,T,Comp,Allocator>::del_in(Tree<Key,T,Comp,Allocator>& tr, Node<Key
                     bal = bal->top;
                 }
             }
+
+            return for_ch;
         }
 
-    } else if (key > nd->data.first && nd->right != nullptr)
+    } else if (key > nd->first && nd->right != nullptr)
     {
-        del_in(tr, nd->right, key, nd);
+        auto tmp = del_in(nd->right, key, nd);
         nd = balance(nd, top);
+        return tmp;
 
-    } else if (key < nd->data.first && nd->left != nullptr)
+    } else if (key < nd->first && nd->left != nullptr)
     {
-        del_in(tr, nd->left, key, nd);
+        auto tmp = del_in(nd->left, key, nd);
         nd = balance(nd, top);
+        return tmp;
+
+    } else {
+        // extract has to return empty node
+        Node<Key,T>* ret = alloc_traits::allocate(alloc, 1);
+        alloc_traits::construct(alloc, ret);
+        return ret;
     }
 }
 
@@ -329,7 +371,6 @@ template <typename Key, typename T, class Comp, class Allocator>
 Node<Key,T>* Tree<Key,T,Comp,Allocator>::destruct_in (Node<Key, T>* nd, Node<Key, T>* top)
 {
     if (is_leaf(nd))
-        // delete nd;
         alloc_traits::deallocate(alloc, nd, 1);
 
     if (nd->right != nullptr)
@@ -337,35 +378,39 @@ Node<Key,T>* Tree<Key,T,Comp,Allocator>::destruct_in (Node<Key, T>* nd, Node<Key
     if (nd->left != nullptr)
         nd->left = destruct_in(nd->left, nd);
 
+    _size = 0;
     return nullptr;
 }
 
 template <typename Key, typename T, class Comp, class Allocator>
-Node<Key,T>* Tree<Key,T,Comp,Allocator>::search_in (Key key, Node<Key,T>* nd)
+Node<Key,T>* Tree<Key,T,Comp,Allocator>::find_in (Key key, Node<Key,T>* nd)
 {
-    if (nd->data.first == key)
-        return nd;
-
-    else if (Comp{}(key, nd->data.first) && nd->right != nullptr)
+    if (nd != nullptr)
     {
-        search_in(key, nd->right);
+        if (nd->first == key)
+            return nd;
 
-    } else if (!Comp{}(key,nd->data.first) && nd->left != nullptr)
-    {
-        search_in(key, nd->left);
-    }
+        else if (Comp{}(key, nd->first) && nd->right != nullptr)
+            return find_in(key, nd->right);
+        else if (!Comp{}(key,nd->first) && nd->left != nullptr)
+            return find_in(key, nd->left);
+        else 
+            return nullptr;
+    } 
 }
 
 template <typename Key, typename T, class Comp, class Allocator>
-Tree<Key,T,Comp,Allocator>::Tree(Key k, T data)
+Tree<Key,T,Comp,Allocator>::Tree(std::pair<Key,T> pair)
 {
-    push_in(*this, root, data, k, nullptr);
+    push_in(root, pair, nullptr);
+    _size = 1;
 }
 
 template <typename Key, typename T, class Comp, class Allocator>
 Tree<Key,T,Comp,Allocator>::Tree(Tree<Key,T,Comp,Allocator>&& other)
 {
     root = other.root;
+    _size = other._size;
     other.root = nullptr;
 }
 
@@ -382,59 +427,60 @@ bool Tree<Key,T,Comp,Allocator>::operator!=( Tree<Key,T,Comp,Allocator>& other )
 }
 
 template <typename Key, typename T, class Comp, class Allocator>
-void Tree<Key,T,Comp,Allocator>::push (Key key, T data)
+Node<Key,T>* Tree<Key,T,Comp,Allocator>::push (const std::pair<Key,T>& pair)
 {
-    push_in(*this, root, data, key, nullptr);
+    return push_in(root, pair, nullptr).second;
 }
 
 template <typename Key, typename T, class Comp, class Allocator>
-void Tree<Key,T,Comp,Allocator>::del(Key key)
+Node<Key,T>* Tree<Key,T,Comp,Allocator>::del(Key key)
 {
-    if (root != nullptr)
-    {
-        Node<Key,T>* null = nullptr;
-        del_in(*this, root, key, null);
-
-    } else 
-        std::cout << "Empty Tree\n";
+    Node<Key,T>* null = nullptr;
+    return del_in(root, key, null);
 }
 
 template <typename Key, typename T, class Comp, class Allocator>
-Node<Key,T>* Tree<Key,T,Comp,Allocator>::search (Key key)
+Node<Key,T>* Tree<Key,T,Comp,Allocator>::find (const Key& key)
 {
-    return search_in (key, root);
+    return find_in (key, root);
 }
 
 template <typename Key, typename T, class Comp, class Allocator>
-Node<Key,T>* Tree<Key,T,Comp,Allocator>::find_min(Key key)
+Node<Key,T>* Tree<Key,T,Comp,Allocator>::find_min() const
 {
     Node<Key,T>* tmp = root;
     Node<Key,T>* min = tmp;
 
-    do {
+    if (min != nullptr)
+    {
+        do {
 
-        if (Comp{}(tmp->data.first, min->data.first))
-            min = tmp;
-        tmp = tmp->left;
+            if (!Comp{}(tmp->first, min->first))
+                min = tmp;
+            tmp = tmp->left;
 
-    } while (tmp != nullptr);
+        } while (tmp != nullptr);
+    }
 
     return min;
 }
 
 template <typename Key, typename T, class Comp, class Allocator>
-Node<Key,T>* Tree<Key,T,Comp,Allocator>::find_max(Key key)
+Node<Key,T>* Tree<Key,T,Comp,Allocator>::find_max() const
 {
     Node<Key,T>* tmp = root;
     Node<Key,T>* max = tmp;
 
-    do {
+    if (max != nullptr)
+    {
+        do {
 
-        if (Comp{}(tmp->data.first, max->data.first))
-            max = tmp;
-        tmp = tmp->right;
+            if (Comp{}(tmp->first, max->first))
+                max = tmp;
+            tmp = tmp->right;
 
-    } while (tmp != nullptr);
+        } while (tmp != nullptr);
+    }
 
     return max;
 }
@@ -449,7 +495,10 @@ Tree<Key,T,Comp,Allocator>::~Tree()
     }
 }
 
-void temporary()
-{
-    Tree<int, int> tr;
-}
+/*
+template class Bidir_const_iter
+    <int, std::string, std::greater<int>, std::allocator<Node<int, std::string>>>;
+    */
+template struct Node<int, std::string>;
+template class Tree
+    <int, std::string, std::greater<int>, std::allocator<Node<int, std::string>>>;
