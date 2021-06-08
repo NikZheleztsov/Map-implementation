@@ -26,10 +26,6 @@ public:
         { return (node == other.node); }
     bool operator!=( const Iter& other ) const 
         { return (node != other.node); }
-    //////
-    bool operator!=( std::nullptr_t ) const  // Maybe there's another way ? 
-        { return (node != nullptr); }
-    //////
     reference operator*() const { return *node; }
     pointer operator->() const { return node; };
     Iter operator++();

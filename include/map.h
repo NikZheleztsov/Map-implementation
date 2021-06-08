@@ -86,9 +86,16 @@ public:
     void swap(Map& other);
 
     node_type extract (iterator position) 
-        { return *tr.del_in(position.node, position.node->first, position.node->top); }
+        { auto ret = tr.del_in(position.node, position.node->first, position.node->top);
+            auto r = *ret;
+            alloc_traits::deallocate(alloc, ret, 1);
+            return r; }
+
     node_type extract (const key_type& x)
-        { return *tr.del(x); }
+        { auto ret = tr.del(x);
+            auto r = *ret;
+            alloc_traits::deallocate(alloc, ret, 1);
+            return r; }
 
     // with reallocations, unfortunately
     template<class C2> void merge( Map<Key,T,C2,Allocator>& source );
@@ -102,10 +109,11 @@ public:
 template <class Key, class T, class Compare, class Allocator> 
 inline T& Map_impl::at (const Key& key) 
 { 
-    if (tr.find(key) == nullptr) 
+    auto k = tr.find(key);
+    if (k == nullptr) 
         throw std::out_of_range("not found");
 
-    return tr.find(key)->second;
+    return k->second;
 }
 
 template <class Key, class T, class Compare, class Allocator> template <class InputIt> 

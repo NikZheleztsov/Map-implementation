@@ -436,6 +436,11 @@ template <typename Key, typename T, class Comp, class Allocator>
 Node<Key,T>* Tree<Key,T,Comp,Allocator>::del(Key key)
 {
     Node<Key,T>* null = nullptr;
+    /*
+    auto ret = del_in(root, key, null);
+    auto r = *ret;
+    alloc_traits::deallocate(alloc, ret, 1);
+    */
     return del_in(root, key, null);
 }
 
