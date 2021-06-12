@@ -4,7 +4,6 @@
 #include <functional>
 #include <utility>
 #include <string>
-// #include "bidir_const_iter.h"
 
 template <typename, typename, class, class>
 class Bidir_const_iter;
@@ -23,6 +22,14 @@ struct Node
         first(pair.first), second(pair.second),
         top(Top), left(Left), right(Right),
         dif(Dif), height(h) {}
+
+    bool operator==(Node<Key,T> nd)
+    {
+        return (first = nd.first && second == nd.second && 
+                top == nd.top && left == nd.left &&
+                right == nd.right && dif == nd.dif &&
+                height == nd.height);
+    }
 
     private:
     Node* top;
@@ -66,6 +73,7 @@ template <
     Node<Key,T>* del_in(Node<Key, T>* nd, Key key, Node<Key, T>* top);
     Node<Key,T>* destruct_in (Node<Key, T>* nd, Node<Key, T>* top);
     Node<Key,T>* find_in (Key key, Node<Key,T>* nd);
+    void merge_in (Node<Key,T>* nd, Tree& source);
 
 public:
 
@@ -80,11 +88,12 @@ public:
     Tree(Tree<Key,T,Comp,Allocator>&& other);
 
     Node<Key,T>* push (const std::pair<Key,T>& pair);
-    Node<Key,T>* del(Key key);
+    Node<Key,T> del(Key key);
     Node<Key,T>* find (const Key& key);
     Node<Key,T>* find_max() const;
     Node<Key,T>* find_min() const;
     Node<Key,T>* get_root() const { return root; };
+    void merge(Tree& source);
 
     bool operator==( Tree<Key,T,Comp,Allocator>& other );
     bool operator!=( Tree<Key,T,Comp,Allocator>& other );
@@ -93,6 +102,5 @@ public:
 
     template <typename, typename, class, class> friend class Map;
 };
-
 
 #endif

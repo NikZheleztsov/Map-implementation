@@ -26,7 +26,11 @@ Tree<Key,T,Comp,Allocator>::Tree(const Tree<Key,T,Comp,Allocator>& other)
 template <typename Key, typename T, class Comp, class Allocator>
 Tree<Key,T,Comp,Allocator>& Tree<Key,T,Comp,Allocator>::operator=( Tree<Key,T,Comp,Allocator>& other )
 {
-    this->~Tree();
+    if (root != nullptr)
+    {
+        Node<Key,T>* null = nullptr;
+        root = destruct_in(root, null);
+    }
 
     if (other.root != nullptr)
     {
@@ -433,21 +437,67 @@ Node<Key,T>* Tree<Key,T,Comp,Allocator>::push (const std::pair<Key,T>& pair)
 }
 
 template <typename Key, typename T, class Comp, class Allocator>
-Node<Key,T>* Tree<Key,T,Comp,Allocator>::del(Key key)
+Node<Key,T> Tree<Key,T,Comp,Allocator>::del(Key key)
 {
     Node<Key,T>* null = nullptr;
-    /*
     auto ret = del_in(root, key, null);
-    auto r = *ret;
-    alloc_traits::deallocate(alloc, ret, 1);
-    */
-    return del_in(root, key, null);
+    if (ret != nullptr)
+    {
+        auto r = *ret;
+        alloc_traits::deallocate(alloc, ret, 1);
+        return r;
+    } else
+        return Node<Key,T>();
+
+    // return del_in(root, key, null);
 }
 
 template <typename Key, typename T, class Comp, class Allocator>
 Node<Key,T>* Tree<Key,T,Comp,Allocator>::find (const Key& key)
 {
     return find_in (key, root);
+}
+
+// pointers from other tree!
+template <typename Key, typename T, class Comp, class Allocator>
+void Tree<Key,T,Comp, Allocator>::merge_in(Node<Key,T>* nd,
+        Tree& source) 
+{
+    if (find(nd->first) == nullptr)
+    {
+        push(std::make_pair(nd->first, nd->second));
+
+        Node<Key,T>* top = nullptr;
+        if (nd != source.root)
+            top = nd->top;
+
+        source.del_in(nd, nd->first, nd->top);
+        if (top != nullptr)
+            top = source.balance(top, top->top);
+
+        (top != nullptr) ? merge_in(top, source) : merge_in(nd, source);
+
+    } else {
+
+        if (nd->left != nullptr)
+            merge_in(nd->left, source);
+        if (nd->right != nullptr)
+            merge_in(nd->right, source);
+    }
+}
+
+template <typename Key, typename T, class Comp, class Allocator>
+void Tree<Key,T,Comp, Allocator>::merge(Tree& source)
+{
+/*
+    if (find(x.first).node == nullptr)
+    {
+        insert(std::make_pair(x.first, x.second));
+        source.erase(x.first);
+    }
+    */
+    
+    merge_in(source.root, source);
 }
 
 template <typename Key, typename T, class Comp, class Allocator>

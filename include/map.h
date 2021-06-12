@@ -86,16 +86,13 @@ public:
     void swap(Map& other);
 
     node_type extract (iterator position) 
-        { auto ret = tr.del_in(position.node, position.node->first, position.node->top);
+        {   auto ret = tr.del_in(position.node, position.node->first, position.node->top);
             auto r = *ret;
             alloc_traits::deallocate(alloc, ret, 1);
             return r; }
 
     node_type extract (const key_type& x)
-        { auto ret = tr.del(x);
-            auto r = *ret;
-            alloc_traits::deallocate(alloc, ret, 1);
-            return r; }
+        { return tr.del(x); }
 
     // with reallocations, unfortunately
     template<class C2> void merge( Map<Key,T,C2,Allocator>& source );
@@ -225,13 +222,7 @@ template <class Key, class T, class Compare, class Allocator>
 typename Map_impl::size_type Map_impl::erase (const Key& key)
 {
     auto nd = tr.del(key);
-    if (nd != nullptr) 
-    {
-        std::allocator_traits<Allocator>::deallocate(alloc, nd, 1);
-        return 1;
-    }
-
-    return 0;
+    return (nd == Node<Key, T>()) ? 0 : 1;
 }
 
 template <class Key, class T, class Compare, class Allocator> 
@@ -242,16 +233,18 @@ inline void Map_impl::swap(Map& other)
     *this = tmp;
 }
 
-// not right
 template <class Key, class T, class Compare, class Allocator> 
 template<class C2> void Map_impl::merge( Map<Key,T,C2,Allocator>& source )
 {
-    for (auto x : source)
+    /* for (auto x : source)
         if (find(x.first).node == nullptr)
         {
             insert(std::make_pair(x.first, x.second));
             source.erase(x.first);
         }
+        */
+
+    tr.merge(source.tr);
 }
 
 #endif
